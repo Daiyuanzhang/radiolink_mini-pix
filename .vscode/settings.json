@@ -36,7 +36,7 @@
         "AntennaTracker/": true,
         "ArduCopter/": false,  // 如果使用的是多旋翼固件，则将此文件夹的隐藏设置为"false" 
         "APMrover2": true,
-        "ArduPlane/": true,
+        "ArduPlane/": false,
         "ArduSub/": true,
         "build/": false,
         "docs/": true,
