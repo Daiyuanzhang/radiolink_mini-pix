@@ -105,7 +105,6 @@ GTAGS
 config.mk
 *.apj
 .gdbinit
-/.vscode
 /.history
 Parameters.html
 Parameters.md
