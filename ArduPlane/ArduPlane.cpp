@@ -50,6 +50,7 @@ SCHED_TASK_CLASS arguments:
  - priority (0 through 255, lower number meaning higher priority)
 
  */
+// const AP_Scheduler::Task数据类型，Plane::类作用域，scheduler_tasks数组名
 const AP_Scheduler::Task Plane::scheduler_tasks[] = {
                            // Units:   Hz      us
     SCHED_TASK(ahrs_update,           400,    400,   3),
@@ -86,6 +87,12 @@ const AP_Scheduler::Task Plane::scheduler_tasks[] = {
     SCHED_TASK_CLASS(Compass,          &plane.compass,        cal_update, 50,  50,  84),
 #if AP_OPTICALFLOW_ENABLED
     SCHED_TASK_CLASS(OpticalFlow, &plane.optflow, update,    50,    50,  87),
+#endif
+#if AT_CONTROL_FLIGHT
+    SCHED_TASK(at_control_flight,       10,   150,  90),
+#endif
+#if UST_BIRD_TASK
+    SCHED_TASK(USTBird_task,            10,   150,  93),
 #endif
     SCHED_TASK(one_second_loop,         1,    400,  90),
     SCHED_TASK(three_hz_loop,           3,     75,  93),
@@ -193,6 +200,19 @@ void Plane::ahrs_update()
     if (should_log(MASK_LOG_VIDEO_STABILISATION)) {
         ahrs.write_video_stabilisation();
     }
+    
+    if(arming.is_armed())
+    {
+        AP_HAL::Util::PersistentData &pd = hal.util->persistent_data;
+        pd.home_lat = reserve_loc.lat;
+        pd.home_lon = reserve_loc.lng;
+        pd.home_alt_cm = reserve_loc.alt;
+    }
+    else
+    {
+        reserve_loc = current_loc;
+    }
+
 }
 
 /*
@@ -266,6 +286,230 @@ void Plane::update_logging2(void)
 }
 
 
+#if UST_BIRD_TASK
+class Global_Pos: public Location{};
+class Local_Pos;
+class Local_Pos:public Location
+{
+public:
+    int32_t x;
+    int32_t y;
+    int32_t z;
+    int32_t get_lat_from_xy(Global_Pos home, Local_Pos local);
+    int32_t get_lng_from_xy(Global_Pos home, Local_Pos local);
+};
+
+int32_t Local_Pos:: get_lng_from_xy(Global_Pos home, Local_Pos local)
+{
+    double R = 637100000.0;  //mm
+    double r = 0;
+    
+    if(home.lat/1e+7 > 0)
+    {
+         r = R*cos((double)(home.lat/1e+7*0.01745329));
+    }
+    else 
+    {
+         r = R*cos((double)(-home.lat/1e+7*0.01745329));
+    }
+    int beta = (int)(local.x/r*180/3.1415926*1e+7);
+    return home.lng + beta;
+}
+
+int32_t Local_Pos::get_lat_from_xy(Global_Pos home, Local_Pos local)
+{
+    double R = 637100000.0;  //mm
+    int alpha = (int)(local.y/R*180/3.1415926*1e+7);
+    return home.lat + alpha;
+}
+int counter = 0;
+void Plane::USTBird_task(void)
+{
+    //calculate the position that we desired...
+    Global_Pos home_pos; home_pos.alt = reserve_loc.lat; home_pos.lat = reserve_loc.lat; home_pos.lng = reserve_loc.lng;
+    
+    Global_Pos desired_pos1;
+    Global_Pos desired_pos2;
+    Global_Pos desired_pos3;
+    //
+    Local_Pos distance_up; distance_up.y = -40000; distance_up.x = 0; distance_up.z = 0;
+    Local_Pos distance_left; distance_left.y = 0; distance_left.x = 40000; distance_left.z = 0;
+    Local_Pos distance_right; distance_right.y = 0; distance_right.x = -40000; distance_right.z = 0;
+ 
+    desired_pos1.lat = distance_up.get_lat_from_xy(home_pos, distance_right);
+    desired_pos1.lng = distance_up.get_lng_from_xy(home_pos, distance_right);
+    desired_pos2.lat = distance_up.get_lat_from_xy(desired_pos1, distance_up);
+    desired_pos2.lng = distance_up.get_lng_from_xy(desired_pos1, distance_up);
+    desired_pos3.lat = distance_up.get_lat_from_xy(desired_pos2, distance_left);
+    desired_pos3.lng = distance_up.get_lng_from_xy(desired_pos2, distance_left); 
+    counter++;
+    if(counter == 20)
+    {
+        gcs().send_text(MAV_SEVERITY_INFO, "home_lat:%d ***home_lng:%d", home.lat, home.lng);
+        gcs().send_text(MAV_SEVERITY_INFO, "点1:%d %d", desired_pos1.lat, desired_pos1.lng);
+        gcs().send_text(MAV_SEVERITY_INFO, "点2:%d %d", desired_pos2.lat, desired_pos2.lng);
+        gcs().send_text(MAV_SEVERITY_INFO, "点3:%d %d", desired_pos3.lat, desired_pos3.lng);
+        gcs().send_text(MAV_SEVERITY_INFO, "***timer:%d****",Plane::timer);
+        gcs().send_text(MAV_SEVERITY_INFO, "***距离目标点距离:%f****",current_loc.get_distance(next_WP_loc));
+        counter = 0;
+    }
+/*******************************control********************************************/
+
+    if(control_mode->is_guided_mode())
+    {
+        if((timer == 0))//(timer == 3)||
+        {
+            next_WP_loc.lat = home_pos.lat;
+            next_WP_loc.lng = home_pos.lng;
+            next_WP_loc.alt = home_pos.alt+3000;
+            if((current_loc.get_distance(next_WP_loc)) < 100)
+            {
+                next_WP_loc.lat = desired_pos1.lat;
+                next_WP_loc.lng = desired_pos1.lng;
+                next_WP_loc.alt = home_pos.alt + 3000;
+                timer = 1;
+            }
+        }
+        else if(timer == 1 && (current_loc.get_distance(next_WP_loc)) < 100)
+        {
+            next_WP_loc.lat = desired_pos2.lat;
+            next_WP_loc.lng = desired_pos2.lng;
+            next_WP_loc.alt = home_pos.alt + 3000;
+            timer = 2;
+        }
+        else if(timer == 2 && (current_loc.get_distance(next_WP_loc)) < 100)
+        {
+            next_WP_loc.lat = desired_pos3.lat;
+            next_WP_loc.lng = desired_pos3.lng;
+            next_WP_loc.alt = home_pos.alt + 3000;
+            timer = 3;
+        }
+
+        if(timer == 3 && (current_loc.get_distance(next_WP_loc)) < 100)
+        {
+
+
+            set_mode(Mode::Number::RTL, ModeReason::MISSION_END);
+        } 
+    }
+
+    plane.calc_nav_roll();
+    plane.calc_nav_pitch();
+    plane.calc_throttle();
+
+    // if(timer == 1)
+    // {
+    //     // next_WP_loc.lat = desired_pos1.lat;
+    //     // next_WP_loc.lng = desired_pos1.lng;
+    //     calc_nav_roll();
+    //     calc_nav_pitch();
+    //     calc_throttle();
+    // }
+    // else if(timer == 2)
+    // {
+    //     // next_WP_loc.lat = desired_pos2.lat;
+    //     // next_WP_loc.lng = desired_pos2.lng;
+    //     calc_nav_roll();
+    //     calc_nav_pitch();
+    //     calc_throttle();
+    // }
+    // else if(timer == 3)
+    // {
+    //     // next_WP_loc.lat = desired_pos3.lat;
+    //     // next_WP_loc.lng = desired_pos3.lng;
+    //     calc_nav_roll();
+    //     calc_nav_pitch();
+    //     calc_throttle();
+    // }
+    
+}
+#endif
+
+
+#if AT_CONTROL_FLIGHT
+uint32_t add_time = 24000-400;
+uint32_t composition_value = 600;
+
+void Plane::at_control_flight(void)
+{
+    // GCS_MAVLINK.chan = MAVLINK_COMM_1;
+    // GCS_MAVLINK.send_heartbeat();
+    //  GCS_MAVLINK.send_heartbeat(MAVLINK_COMM_1);
+    // GCS_MAVLINK::try_send_message(MSG_HEARTBEAT);
+
+    // send_loaction(MAVLINK_COMM_1);
+    // send_attitude(MAVLINK_COMM_1);
+
+    /*
+    uint32_t imatoki = AP_HAL::millis(); 
+    if(counter == 20)
+    {
+        gcs().send_text(MAV_SEVERITY_INFO, "started_flying_ms...%d", started_flying_ms);
+        gcs().send_text(MAV_SEVERITY_INFO, "当前时刻...%d", imatoki); 
+        counter = 0;
+    }
+    counter++;
+   if(started_flying_ms != 0)
+    {
+        //边1
+        if((imatoki - started_flying_ms < 21000 + add_time) && (imatoki - started_flying_ms > 13000 + add_time))
+        {
+            set_mode(Mode::Number::GUIDED, ModeReason::MISSION_END);
+            nav_roll_cd = 3310;
+            nav_pitch_cd = 0;
+        }
+        else if((imatoki - started_flying_ms < 35000 + add_time) && (imatoki - started_flying_ms > 21000 +add_time))
+        {
+            set_mode(Mode::Number::GUIDED, ModeReason::MISSION_END);
+            nav_roll_cd = 0;
+            nav_pitch_cd = 0;
+        }//边2
+        else if((imatoki - started_flying_ms < 42000 + add_time+composition_value) && (imatoki - started_flying_ms > 35000 + add_time))
+        {
+            set_mode(Mode::Number::GUIDED, ModeReason::MISSION_END);
+            nav_roll_cd = 3310;
+            nav_pitch_cd = 0;
+        }
+        else if((imatoki - started_flying_ms < 56000 + add_time+composition_value) && (imatoki - started_flying_ms > 42000 + add_time+composition_value))
+        {
+            set_mode(Mode::Number::GUIDED, ModeReason::MISSION_END);
+            nav_roll_cd = 0;
+            nav_pitch_cd = 0;
+        }//边3
+        else if((imatoki - started_flying_ms < 63000 + add_time+2*composition_value) && (imatoki - started_flying_ms > 56000 + add_time+composition_value))
+        {
+            set_mode(Mode::Number::GUIDED, ModeReason::MISSION_END);
+            nav_roll_cd = 3310;
+            nav_pitch_cd = 0;
+        }
+            else if((imatoki - started_flying_ms < 77000 + add_time+2*composition_value) && (imatoki - started_flying_ms > 63000 + add_time+2*composition_value))
+        {
+            set_mode(Mode::Number::GUIDED, ModeReason::MISSION_END);
+            nav_roll_cd = 0;
+            nav_pitch_cd = 0;
+        }//边4
+            else if((imatoki - started_flying_ms < 84000 + add_time+3*composition_value) && (imatoki - started_flying_ms > 77000 + add_time+2*composition_value))
+        {
+            set_mode(Mode::Number::GUIDED, ModeReason::MISSION_END);
+            nav_roll_cd = 3310;
+            nav_pitch_cd = 0;
+        }
+            else if((imatoki - started_flying_ms < 96000 + add_time+3*composition_value) && (imatoki - started_flying_ms > 84000 + add_time+3*composition_value))
+        {
+            set_mode(Mode::Number::GUIDED, ModeReason::MISSION_END);
+            nav_roll_cd = 0;
+            nav_pitch_cd = 0;
+        }//结束
+            else if(imatoki - started_flying_ms > 96000 + add_time+composition_value)
+        {
+            set_mode(Mode::Number::RTL, ModeReason::MISSION_END);
+        }
+    }
+    */
+}
+#endif
+
+
 /*
   check for AFS failsafe check
  */
@@ -336,6 +580,12 @@ void Plane::one_second_loop()
             // reset the landing altitude correction
             landing.alt_offset = 0;
     }
+
+    gcs().send_text(MAV_SEVERITY_INFO, "Current altitude:%.1fm", Plane::intime_altitude_cm()/1000.0f);
+    // gcs().send_text(MAV_SEVERITY_INFO, "TIMER: %d", plane.timer); 
+    // gcs().send_text(MAV_SEVERITY_INFO, "当current_loc：alt:%d lat:%d lng:%d", Plane::current_loc.alt, Plane::current_loc.lat, Plane::current_loc.lng);
+    // gcs().send_text(MAV_SEVERITY_INFO, "当reserve_loc：alt:%d lat:%d lng:%d", Plane::reserve_loc.alt, Plane::reserve_loc.lat, Plane::reserve_loc.lng);
+
 }
 
 void Plane::three_hz_loop()

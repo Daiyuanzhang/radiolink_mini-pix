@@ -24,7 +24,9 @@
         "xstring": "cpp",
         "xutility": "cpp",
         "iosfwd": "cpp",
-        "ratio": "cpp"
+        "ratio": "cpp",
+        "system_error": "cpp",
+        "xlocale": "cpp"
     },
     // 切换到当前工作目录
     "terminal.integrated.env.windows": {
@@ -34,7 +36,7 @@
     // 不包含的文件夹
     "files.exclude": {
         "AntennaTracker/": true,
-        "ArduCopter/": false,  // 如果使用的是多旋翼固件，则将此文件夹的隐藏设置为"false" 
+        "ArduCopter/": true,  // 如果使用的是多旋翼固件，则将此文件夹的隐藏(不显示)设置为"false" 
         "APMrover2": true,
         "ArduPlane/": false,
         "ArduSub/": true,

@@ -114,7 +114,8 @@
 #include "avoidance_adsb.h"
 #endif
 #include "AP_Arming.h"
-
+#define AT_CONTROL_FLIGHT  1
+#define UST_BIRD_TASK      0
 /*
   main APM:Plane class
  */
@@ -191,7 +192,7 @@ private:
     // scaled roll limit based on pitch
     int32_t roll_limit_cd;
     int32_t pitch_limit_min_cd;
-
+    int32_t timer;
     // flight modes convenience array
     AP_Int8 *flight_modes = &g.flight_mode1;
 
@@ -716,7 +717,7 @@ private:
 
     // The plane's current location
     struct Location current_loc {};
-
+    struct Location reserve_loc {};
     // The location of the current/active waypoint.  Used for altitude ramp, track following and loiter calculations.
     Location next_WP_loc {};
 
@@ -828,6 +829,7 @@ private:
 #endif
 
     // Attitude.cpp
+    int32_t intime_altitude_cm(void);
     void adjust_nav_pitch_throttle(void);
     void update_load_factor(void);
     void adjust_altitude_target();
@@ -1002,6 +1004,12 @@ private:
     void afs_fs_check(void);
 #endif
     void one_second_loop(void);
+#if AT_CONTROL_FLIGHT
+    void at_control_flight(void);
+#endif
+#if UST_BIRD_TASK
+    void USTBird_task(void);
+#endif
     void three_hz_loop(void);
 #if AP_AIRSPEED_AUTOCAL_ENABLE
     void airspeed_ratio_update(void);

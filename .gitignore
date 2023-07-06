@@ -65,6 +65,9 @@ ArduCopter/ral.txt
 ArduCopter/test.ArduCopter/
 ArduCopter/test/*
 ArduCopter/way.txt
+ArduPlane/test.ArduPlane/
+ArduPlane/test/*
+ArduPlane/way.txt
 Build.Rover/*
 Build.AntennaTracker/*
 Build.ArduCopter/*
