@@ -101,7 +101,10 @@ bool Plane::stick_mixing_enabled(void)
     return true;
 }
 
-
+int32_t Plane::intime_altitude_cm(void)
+{
+    return current_loc.alt;
+}
 /*
   this is the main roll stabilization function. It takes the
   previously set nav_roll calculates roll servo_out to try to

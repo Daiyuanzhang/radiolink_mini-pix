@@ -21,7 +21,6 @@
  */
 
 #include "Plane.h"
-
 #define SCHED_TASK(func, rate_hz, max_time_micros, priority) SCHED_TASK_CLASS(Plane, &plane, func, rate_hz, max_time_micros, priority)
 
 
@@ -585,6 +584,14 @@ void Plane::one_second_loop()
     // gcs().send_text(MAV_SEVERITY_INFO, "TIMER: %d", plane.timer); 
     // gcs().send_text(MAV_SEVERITY_INFO, "µ±current_loc£ºalt:%d lat:%d lng:%d", Plane::current_loc.alt, Plane::current_loc.lat, Plane::current_loc.lng);
     // gcs().send_text(MAV_SEVERITY_INFO, "µ±reserve_loc£ºalt:%d lat:%d lng:%d", Plane::reserve_loc.alt, Plane::reserve_loc.lat, Plane::reserve_loc.lng);
+   
+    //uartStartSend(&UARTD1, 30, (const void *) "ChibiOS PORT on ATtiny-167!.\n\r");
+    using namespace AP;
+    //notify.handle_rgb(0,0,0,10);
+    notify.init();
+    notify.update();
+
+    notify.handle_rgb_id(255,0,0,5);
 
 }
 

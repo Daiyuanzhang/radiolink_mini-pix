@@ -26,7 +26,10 @@
         "iosfwd": "cpp",
         "ratio": "cpp",
         "system_error": "cpp",
-        "xlocale": "cpp"
+        "xlocale": "cpp",
+        "ch.h": "c",
+        "hal.h": "c",
+        "stm32_gpio.h": "c"
     },
     // 切换到当前工作目录
     "terminal.integrated.env.windows": {
