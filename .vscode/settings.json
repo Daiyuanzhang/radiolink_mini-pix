@@ -29,7 +29,8 @@
         "xlocale": "cpp",
         "ch.h": "c",
         "hal.h": "c",
-        "stm32_gpio.h": "c"
+        "stm32_gpio.h": "c",
+        "charconv": "cpp"
     },
     // 切换到当前工作目录
     "terminal.integrated.env.windows": {

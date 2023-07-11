@@ -15,7 +15,7 @@
 
 */
 
-
+#include "../../ArduPlane/Plane.h"
 #include <AP_HAL/AP_HAL.h>
 #include <AP_GPS/AP_GPS.h>
 #include "RGBLed.h"
@@ -187,42 +187,60 @@ uint32_t RGBLed::get_colour_sequence_traffic_light(void) const
 
 // update - updates led according to timed_updated.  Should be called
 // at 50Hz
+
+
 void RGBLed::update()
 {
-    uint32_t current_colour_sequence = 0;
+    // uint32_t current_colour_sequence = 0;
 
-    switch (rgb_source()) {
-    case mavlink:
-        update_override();
-        return; // note this is a return not a break!
-    case standard:
-        current_colour_sequence = get_colour_sequence();
-        break;
-    case obc:
-        current_colour_sequence = get_colour_sequence_obc();
-        break;
-    case traffic_light:
-        current_colour_sequence = get_colour_sequence_traffic_light();
-        break;
-    }
+    // switch (rgb_source()) {
+    // case mavlink:
+    //     update_override();
+    //     return; // note this is a return not a break!
+    // case standard:
+    //     current_colour_sequence = get_colour_sequence();//给LED等一个节拍，按照数组中的节拍来闪烁。
+    //     break;
+    // case obc:
+    //     current_colour_sequence = get_colour_sequence_obc();
+    //     break;
+    // case traffic_light:
+    //     current_colour_sequence = get_colour_sequence_traffic_light();
+    //     break;
+    // }
 
-    const uint8_t brightness = get_brightness();
+    // const uint8_t brightness = get_brightness();
 
     uint8_t step = (AP_HAL::millis()/100) % 10;
-
-    // ensure we can't skip a step even with awful timing
+    uint8_t senconds = (AP_HAL::millis()/300) % 10;
+    // // gcs().send_text(MAV_SEVERITY_INFO, "Current time:%ds", step);
+    // // ensure we can't skip a step even with awful timing
     if (step != last_step) {
         step = (last_step+1) % 10;
         last_step = step;
+
+    if(senconds % 3 == 0) 
+        set_rgb(3, 0, 0);
+    else if(senconds % 3 == 1)
+        set_rgb(0, 3, 0);
+    else if(senconds % 3 == 2)
+        set_rgb(0, 0, 3);
     }
+    // // gcs().send_text(MAV_SEVERITY_INFO, "deal finish time:%ds", step);
 
-    const uint8_t colour = (current_colour_sequence >> (step*3)) & 7;
 
-    uint8_t red_des = (colour & RED) ? brightness : _led_off;
-    uint8_t green_des = (colour & GREEN) ? brightness : _led_off;
-    uint8_t blue_des = (colour & BLUE) ? brightness : _led_off;
+    // const uint8_t colour = (current_colour_sequence >> (step*3)) & 7;
 
-    set_rgb(red_des, green_des, blue_des);
+    // uint8_t red_des = (colour & RED) ? brightness : _led_off;
+    // uint8_t green_des = (colour & GREEN) ? brightness : _led_off;
+    // uint8_t blue_des = (colour & BLUE) ? brightness : _led_off;
+
+    // set_rgb(red_des, green_des, blue_des);
+
+    // set_rgb(3, 0, 0);
+
+    // set_rgb(0, 3, 0);
+
+    // set_rgb(0, 0, 3);
 }
 
 /*

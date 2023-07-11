@@ -216,7 +216,7 @@ private:
     uint32_t _send_text_updated_millis; // last time text changed
     char _flight_mode_str[5];
 
-    static NotifyDevice* _devices[];
+    static NotifyDevice* _devices[]; //ÉùÃ÷±äÁ¿
     static uint8_t _num_devices;
 };
 

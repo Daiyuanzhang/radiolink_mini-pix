@@ -21,6 +21,7 @@
  */
 
 #include "Plane.h"
+#include "../libraries/AP_Notify/RGBLed.h"
 #define SCHED_TASK(func, rate_hz, max_time_micros, priority) SCHED_TASK_CLASS(Plane, &plane, func, rate_hz, max_time_micros, priority)
 
 
@@ -587,12 +588,15 @@ void Plane::one_second_loop()
    
     //uartStartSend(&UARTD1, 30, (const void *) "ChibiOS PORT on ATtiny-167!.\n\r");
     using namespace AP;
-    //notify.handle_rgb(0,0,0,10);
-    notify.init();
-    notify.update();
 
-    notify.handle_rgb_id(255,0,0,5);
-
+    // notify.handle_rgb(0,0,0,10);
+    // notify.init();
+    // notify.update();
+    // notify->_devices[0].
+    // notify.set_rgb(0,3,0);
+    // notify.handle_rgb_id(255,0,0,5);
+    // RGBLed::set_rgb(0, 0, 3);
+    
 }
 
 void Plane::three_hz_loop()

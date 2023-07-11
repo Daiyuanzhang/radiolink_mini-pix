@@ -227,7 +227,7 @@ AP_Notify::AP_Notify()
 struct AP_Notify::notify_flags_and_values_type AP_Notify::flags;
 struct AP_Notify::notify_events_type AP_Notify::events;
 
-NotifyDevice *AP_Notify::_devices[CONFIG_NOTIFY_DEVICES_MAX];
+NotifyDevice *AP_Notify::_devices[CONFIG_NOTIFY_DEVICES_MAX];//定义变量
 uint8_t AP_Notify::_num_devices;
 
 void AP_Notify::add_backend_helper(NotifyDevice *backend)
@@ -403,9 +403,11 @@ void AP_Notify::init(void)
 void AP_Notify::update(void)
 {
     for (uint8_t i = 0; i < _num_devices; i++) {
+
         if (_devices[i] != nullptr) {
             _devices[i]->update();
         }
+        
     }
 
     //reset the events
